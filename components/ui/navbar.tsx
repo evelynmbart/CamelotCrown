@@ -49,6 +49,10 @@ export function Navbar({ username, elo }: NavbarProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <ThemeToggle />
+            <Button variant="ghost" size="sm">
+              Sign Out
+            </Button>
             {username && (
               <div className="hidden sm:flex items-center gap-3 text-sm">
                 <span className="text-muted-foreground">{username}</span>
@@ -59,10 +63,6 @@ export function Navbar({ username, elo }: NavbarProps) {
                 )}
               </div>
             )}
-            <ThemeToggle />
-            <Button variant="ghost" size="sm">
-              Sign Out
-            </Button>
           </div>
         </div>
       </div>
