@@ -37,9 +37,9 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { Eye, Lock, Play } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Navbar } from "./ui/navbar";
 
 interface Profile {
   id: string;
@@ -337,39 +337,7 @@ export function LobbyClient({
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-foreground">Courser</h1>
-            <Badge variant="secondary" className="text-sm">
-              {profile?.username || "Player"}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button asChild variant="outline">
-              <Link href="/local">Local Play</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/players">Players</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/leaderboard">Leaderboard</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/history">Match History</Link>
-            </Button>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">ELO Rating</div>
-              <div className="text-lg font-bold text-foreground">
-                {profile?.elo_rating || 1200}
-              </div>
-            </div>
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Navbar username={profile?.username} elo={profile?.elo_rating} />
 
       <div className="container mx-auto px-4 py-8">
         {/* Player Stats Card */}
