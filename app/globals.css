@@ -3,6 +3,10 @@
 
 @variant dark (&:is(.dark *));
 
+button {
+  cursor: pointer !important;
+}
+
 :root {
   /* Medieval Light Theme - Parchment & Ink */
   --background: oklch(0.96 0.01 75); /* Warm parchment */

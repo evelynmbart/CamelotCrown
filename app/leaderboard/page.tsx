@@ -1,5 +1,4 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,8 +6,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Navbar } from "@/components/ui/navbar";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 
 export default async function LeaderboardPage() {
   const supabase = await createClient();
@@ -23,18 +22,17 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">
-            Courser Leaderboard
-          </h1>
-          <Button asChild variant="outline">
-            <Link href="/lobby">Back to Lobby</Link>
-          </Button>
-        </div>
-      </header>
-
+      <Navbar
+        username={leaderboard?.[0]?.username}
+        elo={leaderboard?.[0]?.elo_rating}
+      />
       <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Leaderboard</h1>
+          <p className="text-sm text-muted-foreground">
+            See the top players on Courser
+          </p>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>Top Players</CardTitle>
