@@ -8,10 +8,27 @@ import {
 } from "@/components/ui/card";
 import { Navbar } from "@/components/ui/navbar";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function LeaderboardPage() {
   const supabase = await createClient();
 
+  // Get the logged-in user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Get the logged-in user's profile
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("username, elo_rating")
+    .eq("id", user.id)
+    .single();
+
+  // Get leaderboard data
   const { data: leaderboard } = await supabase
     .from("profiles")
     .select(
@@ -22,10 +39,7 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar
-        username={leaderboard?.[0]?.username}
-        elo={leaderboard?.[0]?.elo_rating}
-      />
+      <Navbar username={userProfile?.username} elo={userProfile?.elo_rating} />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Leaderboard</h1>

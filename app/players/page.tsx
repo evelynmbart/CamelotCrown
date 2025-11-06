@@ -11,19 +11,55 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Navbar } from "@/components/ui/navbar";
+import { createClient } from "@/lib/supabase/client";
 import { Search, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+
+interface Profile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  elo_rating: number;
+  games_played: number;
+  games_won: number;
+  games_lost: number;
+  games_drawn: number;
+}
 
 export default function PlayersPage() {
-  // Mock data - in real app this would come from API
-  const currentUser = {
-    username: "levelynup",
-    handle: "@levelynup",
-    elo: 1184,
-    record: "0W - 1L - 0D",
-    winRate: "0%",
-    lastActive: "Online",
-  };
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    async function fetchProfile() {
+      setLoading(true);
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        setProfile(data);
+      }
+      setLoading(false);
+    }
+
+    fetchProfile();
+  }, []);
+
+  // Mock data - in real app this would come from API
   const friends = [
     {
       username: "joebeez",
@@ -35,9 +71,15 @@ export default function PlayersPage() {
     },
   ];
 
+  const winRate = profile?.games_played
+    ? Math.round(((profile.games_won || 0) / profile.games_played) * 100)
+    : 0;
+
+  const record = `${profile?.games_won || 0}W - ${profile?.games_lost || 0}L - ${profile?.games_drawn || 0}D`;
+
   return (
     <div className="min-h-screen bg-background">
-      <Navbar username="levelynup" elo={1184} />
+      <Navbar username={profile?.username} elo={profile?.elo_rating} />
 
       <div className="container mx-auto px-4 py-8 space-y-6">
         <div>
@@ -53,44 +95,56 @@ export default function PlayersPage() {
             <CardTitle className="text-lg">Your Profile</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border-2 border-primary">
-                <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
-                  {currentUser.username[0].toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-lg">
-                    {currentUser.username}
-                  </h3>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-500 border border-green-500/20">
-                    {currentUser.lastActive}
-                  </span>
+            {loading ? (
+              <div className="text-center text-muted-foreground py-8">
+                Loading...
+              </div>
+            ) : profile ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-primary">
+                    <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
+                      {profile.username[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">
+                        {profile.display_name || profile.username}
+                      </h3>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-500 border border-green-500/20">
+                        Online
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      @{profile.username}
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <div className="text-2xl font-bold">{profile.elo_rating}</div>
+                    <div className="text-xs text-muted-foreground">ELO Rating</div>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {currentUser.handle}
-                </p>
+                <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Record</div>
+                    <div className="font-semibold">{record}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Win Rate</div>
+                    <div className="font-semibold">{winRate}%</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Games Played</div>
+                    <div className="font-semibold">{profile.games_played}</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Please log in to view your profile
               </div>
-              <div className="text-right space-y-1">
-                <div className="text-2xl font-bold">{currentUser.elo}</div>
-                <div className="text-xs text-muted-foreground">ELO Rating</div>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-border">
-              <div className="text-center">
-                <div className="text-sm text-muted-foreground">Record</div>
-                <div className="font-semibold">{currentUser.record}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-muted-foreground">Win Rate</div>
-                <div className="font-semibold">{currentUser.winRate}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm text-muted-foreground">Last Active</div>
-                <div className="font-semibold">{currentUser.lastActive}</div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
