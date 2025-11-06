@@ -252,7 +252,7 @@ export function calculateLegalMoves(
     }
   }
 
-  // Canter moves (jump over friendly pieces)
+  // Courser moves (jump over friendly pieces)
   for (const direction of DIRECTIONS) {
     const adjacent = getAdjacentSquare(square, direction)
     if (adjacent && boardState[adjacent]?.color === playerColor) {
@@ -323,7 +323,7 @@ export function makeMove(
     moveType = "plain"
     moveNotation = `${from}-${to}`
   } else if (distance === 2) {
-    // Canter or jump
+    // Courser or jump
     const direction: [number, number] = [
       toFile > fromFile ? 1 : toFile < fromFile ? -1 : 0,
       toRank > fromRank ? 1 : toRank < fromRank ? -1 : 0,
@@ -332,7 +332,7 @@ export function makeMove(
 
     if (middle && boardState[middle]) {
       if (boardState[middle].color === playerColor) {
-        moveType = "canter"
+        moveType = "Courser"
         moveNotation = `${from}-${to}`
       } else {
         moveType = "jump"

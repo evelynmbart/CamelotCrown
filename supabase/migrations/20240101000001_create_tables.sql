@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.moves (
   player_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   move_number INTEGER NOT NULL,
   move_notation TEXT NOT NULL,
-  move_type TEXT NOT NULL CHECK (move_type IN ('plain', 'canter', 'jump', 'knight_charge', 'castle_move')),
+  move_type TEXT NOT NULL CHECK (move_type IN ('plain', 'Courser', 'jump', 'knight_charge', 'castle_move')),
   from_square TEXT NOT NULL,
   to_square TEXT NOT NULL,
   captured_pieces JSONB DEFAULT '[]'::jsonb,

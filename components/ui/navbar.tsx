@@ -28,7 +28,7 @@ export function Navbar({ username, elo }: NavbarProps) {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/lobby" className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-foreground">Canter</h1>
+              <h1 className="text-2xl font-bold text-foreground">Courser</h1>
             </Link>
 
             <div className="hidden md:flex items-center gap-1">

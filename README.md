@@ -1,4 +1,4 @@
-# Canter - Chess Game Platform
+# Courser - Chess Game Platform
 
 A multiplayer chess game platform built with Next.js 16, Supabase, and TypeScript.
 
@@ -26,7 +26,7 @@ A multiplayer chess game platform built with Next.js 16, Supabase, and TypeScrip
 1. **Clone the repository** (if you haven't already)
 
    ```bash
-   cd /path/to/canter
+   cd /path/to/Courser
    ```
 
 2. **Install dependencies**
@@ -111,7 +111,7 @@ supabase migration new your_migration_name
 ### Project Structure
 
 ```
-canter/
+Courser/
 ├── app/                    # Next.js 16 app directory
 │   ├── auth/              # Authentication pages
 │   ├── game/[id]/         # Game page
