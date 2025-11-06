@@ -16,10 +16,10 @@ export function Navbar({ username, elo }: NavbarProps) {
 
   const navItems = [
     { href: "/lobby", label: "Lobby" },
-    { href: "/local-play", label: "Local Play" },
+    { href: "/local", label: "Local Play" },
     { href: "/players", label: "Players" },
     { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/match-history", label: "Match History" },
+    { href: "/history", label: "Match History" },
   ];
 
   return (
