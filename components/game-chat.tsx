@@ -38,14 +38,6 @@ export function GameChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
   useEffect(() => {
     const fetchMessages = async () => {
       const { data, error } = await supabase
