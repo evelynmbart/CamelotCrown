@@ -1,13 +1,19 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { ChivalryBoard } from "./chivalry-board"
-import { calculateLegalMoves, makeMove, checkWinCondition } from "@/lib/chivalry-logic"
-import { Button } from "./ui/button"
-import { Card } from "./ui/card"
+import {
+  calculateLegalMoves,
+  checkWinCondition,
+  makeMove,
+} from "@/lib/chivalry-logic";
+import { useState } from "react";
+import { ChivalryBoard } from "./chivalry-board";
+import { Button } from "./ui/button";
+import { Card } from "./ui/card";
+
+type BoardState = Record<string, { type: string; color: string } | null>;
 
 // Initial board setup
-const INITIAL_BOARD = {
+const INITIAL_BOARD: BoardState = {
   // White pieces (bottom)
   B7: { type: "knight", color: "white" },
   C7: { type: "man", color: "white" },
@@ -58,82 +64,105 @@ const INITIAL_BOARD = {
   K10: { type: "man", color: "black" },
   L10: { type: "man", color: "black" },
   M10: { type: "knight", color: "black" },
-}
+};
 
 export function LocalGameClient() {
-  const [boardState, setBoardState] = useState(INITIAL_BOARD)
-  const [currentTurn, setCurrentTurn] = useState<"white" | "black">("white")
-  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
-  const [legalMoves, setLegalMoves] = useState<string[]>([])
-  const [moveHistory, setMoveHistory] = useState<string[]>([])
-  const [winner, setWinner] = useState<string | null>(null)
+  const [boardState, setBoardState] = useState(INITIAL_BOARD);
+  const [currentTurn, setCurrentTurn] = useState<"white" | "black">("white");
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [moveHistory, setMoveHistory] = useState<string[]>([]);
+  const [winner, setWinner] = useState<string | null>(null);
   const [gameData] = useState({
     white_castle_moves: 0,
     black_castle_moves: 0,
     board_state: INITIAL_BOARD,
-  })
+  });
 
   const handleSquareClick = (square: string) => {
-    if (winner) return
+    if (winner) return;
 
     // If no square selected, select this square if it has a piece of current player
     if (!selectedSquare) {
-      const piece = boardState[square]
+      const piece = boardState[square];
       if (piece && piece.color === currentTurn) {
-        setSelectedSquare(square)
-        const moves = calculateLegalMoves(square, boardState, currentTurn, gameData)
-        setLegalMoves(moves)
+        setSelectedSquare(square);
+        const moves = calculateLegalMoves(
+          square,
+          boardState,
+          currentTurn,
+          gameData
+        );
+        setLegalMoves(moves);
       }
-      return
+      return;
     }
 
     // If clicking the same square, deselect
     if (selectedSquare === square) {
-      setSelectedSquare(null)
-      setLegalMoves([])
-      return
+      setSelectedSquare(null);
+      setLegalMoves([]);
+      return;
     }
 
     // If clicking another piece of the same color, select that instead
-    const piece = boardState[square]
+    const piece = boardState[square];
     if (piece && piece.color === currentTurn) {
-      setSelectedSquare(square)
-      const moves = calculateLegalMoves(square, boardState, currentTurn, gameData)
-      setLegalMoves(moves)
-      return
+      setSelectedSquare(square);
+      const moves = calculateLegalMoves(
+        square,
+        boardState,
+        currentTurn,
+        gameData
+      );
+      setLegalMoves(moves);
+      return;
     }
 
     // Try to make a move
     if (legalMoves.includes(square)) {
-      const result = makeMove(selectedSquare, square, boardState, currentTurn, gameData)
+      const result = makeMove(
+        selectedSquare,
+        square,
+        boardState,
+        currentTurn,
+        gameData
+      );
 
       if (result.success && result.newBoardState) {
-        setBoardState(result.newBoardState)
-        setMoveHistory([...moveHistory, result.moveNotation || `${selectedSquare}-${square}`])
+        setBoardState(result.newBoardState);
+        setMoveHistory([
+          ...moveHistory,
+          result.moveNotation || `${selectedSquare}-${square}`,
+        ]);
 
         // Check for win condition
-        const winCondition = checkWinCondition(result.newBoardState, gameData, currentTurn)
+        const winCondition = checkWinCondition(
+          result.newBoardState,
+          gameData,
+          currentTurn
+        );
         if (winCondition) {
-          setWinner(currentTurn)
+          setWinner(currentTurn);
         } else {
           // Switch turns
-          setCurrentTurn(currentTurn === "white" ? "black" : "white")
+          setCurrentTurn(currentTurn === "white" ? "black" : "white");
         }
 
-        setSelectedSquare(null)
-        setLegalMoves([])
+        setSelectedSquare(null);
+        setLegalMoves([]);
       }
     }
-  }
+  };
 
   const handleReset = () => {
-    setBoardState(INITIAL_BOARD)
-    setCurrentTurn("white")
-    setSelectedSquare(null)
-    setLegalMoves([])
-    setMoveHistory([])
-    setWinner(null)
-  }
+    setBoardState(INITIAL_BOARD);
+    setCurrentTurn("white");
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMoveHistory([]);
+    setWinner(null);
+  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">
@@ -162,11 +191,17 @@ export function LocalGameClient() {
             </div>
             {winner && (
               <div className="mt-4 p-3 bg-primary/10 rounded-md text-center">
-                <div className="font-bold text-lg capitalize">{winner} Wins!</div>
+                <div className="font-bold text-lg capitalize">
+                  {winner} Wins!
+                </div>
               </div>
             )}
           </div>
-          <Button onClick={handleReset} className="w-full mt-4 bg-transparent" variant="outline">
+          <Button
+            onClick={handleReset}
+            className="w-full mt-4 bg-transparent"
+            variant="outline"
+          >
             New Game
           </Button>
         </Card>
@@ -175,11 +210,15 @@ export function LocalGameClient() {
           <h2 className="text-lg font-semibold mb-2">Move History</h2>
           <div className="max-h-64 overflow-y-auto space-y-1 text-sm">
             {moveHistory.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No moves yet</p>
+              <p className="text-muted-foreground text-center py-4">
+                No moves yet
+              </p>
             ) : (
               moveHistory.map((move, index) => (
                 <div key={index} className="flex gap-2">
-                  <span className="text-muted-foreground w-8">{index + 1}.</span>
+                  <span className="text-muted-foreground w-8">
+                    {index + 1}.
+                  </span>
                   <span className="font-mono">{move}</span>
                 </div>
               ))
@@ -188,5 +227,5 @@ export function LocalGameClient() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
