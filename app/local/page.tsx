@@ -1,17 +1,35 @@
-import { LocalGameClient } from "@/components/local-game-client"
+import { LocalGameClient } from "@/components/local-game-client";
+import { Navbar } from "@/components/ui/navbar";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
-export default function LocalPlayPage() {
+export default async function LocalPlayPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/auth/login");
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Local Play</h1>
-            <p className="text-muted-foreground">Play Chivalry with someone sitting next to you</p>
-          </div>
+    <div className="min-h-screen bg-background">
+      <Navbar username={profile?.username} elo={profile?.elo_rating} />
+
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Local Play</h1>
+          <p className="text-sm text-muted-foreground">
+            Play Courser with someone sitting next to you
+          </p>
         </div>
         <LocalGameClient />
       </div>
     </div>
-  )
+  );
 }
