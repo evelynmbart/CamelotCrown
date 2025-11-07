@@ -1,13 +1,44 @@
-// Chivalry game logic
+/**
+ * Chivalry Game Logic
+ *
+ * This file contains the core game rules and logic for Chivalry, a chess-like game
+ * played on a diamond-shaped board with 176 squares.
+ *
+ * Key concepts:
+ * - Plain moves: Move one square in any direction
+ * - Courser moves: Jump over a friendly piece to land 2 squares away
+ * - Jump moves: Capture by jumping over an enemy piece
+ * - Castle squares: G1/H1 (white) and G16/H16 (black)
+ * - Win conditions: Occupy opponent's castle with 2 pieces OR capture all enemy pieces
+ */
 
-type BoardState = Record<string, { type: string; color: string } | null>
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type BoardState = Record<string, { type: string; color: string } | null>;
+
 type GameData = {
-  white_castle_moves: number
-  black_castle_moves: number
-  board_state: BoardState
-}
+  white_castle_moves: number;
+  black_castle_moves: number;
+  board_state: BoardState;
+};
 
-// Get all valid squares on the board
+type MoveResult = {
+  success: boolean;
+  newBoardState?: BoardState;
+  moveNotation?: string;
+  moveType?: string;
+  capturedPieces?: string[];
+  isCastleMove?: boolean;
+  error?: string;
+};
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/** All valid squares on the Chivalry board (176 squares in diamond shape) */
 const ALL_SQUARES = [
   "G1",
   "H1",
@@ -185,167 +216,233 @@ const ALL_SQUARES = [
   "K15",
   "G16",
   "H16",
-]
+];
 
-const WHITE_CASTLE = ["G1", "H1"]
-const BLACK_CASTLE = ["G16", "H16"]
+/** White castle squares (bottom of board) */
+const WHITE_CASTLE = ["G1", "H1"];
 
-// Parse square notation to coordinates
-function parseSquare(square: string): { file: number; rank: number } {
-  const file = square.charCodeAt(0) - 65 // A=0, B=1, etc.
-  const rank = Number.parseInt(square.slice(1))
-  return { file, rank }
-}
+/** Black castle squares (top of board) */
+const BLACK_CASTLE = ["G16", "H16"];
 
-// Convert coordinates back to square notation
-function toSquare(file: number, rank: number): string {
-  return String.fromCharCode(65 + file) + rank
-}
-
-// Check if a square is valid on the board
-function isValidSquare(square: string): boolean {
-  return ALL_SQUARES.includes(square)
-}
-
-// Get adjacent square in a direction
-function getAdjacentSquare(square: string, direction: [number, number]): string | null {
-  const { file, rank } = parseSquare(square)
-  const newFile = file + direction[0]
-  const newRank = rank + direction[1]
-  const newSquare = toSquare(newFile, newRank)
-  return isValidSquare(newSquare) ? newSquare : null
-}
-
-// All 8 directions (horizontal, vertical, diagonal)
+/** All 8 directions: horizontal, vertical, and diagonal */
 const DIRECTIONS: [number, number][] = [
   [0, 1],
-  [0, -1],
+  [0, -1], // vertical
   [1, 0],
-  [-1, 0], // vertical and horizontal
+  [-1, 0], // horizontal
   [1, 1],
+  [-1, -1], // diagonal down-right, up-left
   [1, -1],
-  [-1, 1],
-  [-1, -1], // diagonals
-]
+  [-1, 1], // diagonal down-left, up-right
+];
 
-// Calculate legal moves for a piece
+/** Starting positions for white pieces */
+const WHITE_KNIGHTS = ["C6", "D6", "K6", "L6", "C7", "D7", "K7", "L7"];
+const WHITE_MEN = [
+  "E6",
+  "E7",
+  "F6",
+  "F7",
+  "G6",
+  "G7",
+  "H6",
+  "H7",
+  "I6",
+  "I7",
+  "J6",
+  "J7",
+];
+
+/** Starting positions for black pieces */
+const BLACK_KNIGHTS = ["C10", "D10", "K10", "L10", "C11", "D11", "K11", "L11"];
+const BLACK_MEN = [
+  "E10",
+  "E11",
+  "F10",
+  "F11",
+  "G10",
+  "G11",
+  "H10",
+  "H11",
+  "I10",
+  "I11",
+  "J10",
+  "J11",
+];
+
+// ============================================================================
+// COORDINATE UTILITIES
+// ============================================================================
+
+/**
+ * Parse square notation (e.g., "E6") to coordinates
+ * @returns {file, rank} where file is 0-13 (A-N) and rank is 1-16
+ */
+function parseSquare(square: string): { file: number; rank: number } {
+  const file = square.charCodeAt(0) - 65; // A=0, B=1, ..., N=13
+  const rank = Number.parseInt(square.slice(1));
+  return { file, rank };
+}
+
+/**
+ * Convert coordinates back to square notation
+ */
+function toSquare(file: number, rank: number): string {
+  return String.fromCharCode(65 + file) + rank;
+}
+
+/**
+ * Check if a square exists on the board
+ */
+function isValidSquare(square: string): boolean {
+  return ALL_SQUARES.includes(square);
+}
+
+/**
+ * Get the adjacent square in a given direction
+ * @param direction [fileOffset, rankOffset] e.g., [1, 0] for one square right
+ * @returns The adjacent square or null if it doesn't exist
+ */
+function getAdjacentSquare(
+  square: string,
+  direction: [number, number]
+): string | null {
+  const { file, rank } = parseSquare(square);
+  const newFile = file + direction[0];
+  const newRank = rank + direction[1];
+  const newSquare = toSquare(newFile, newRank);
+  return isValidSquare(newSquare) ? newSquare : null;
+}
+
+// ============================================================================
+// MOVE CALCULATION
+// ============================================================================
+
+/**
+ * Calculate all legal moves for a piece at the given square
+ *
+ * Move types:
+ * - Plain: Move one square in any direction (cannot enter own castle)
+ * - Courser: Jump over a friendly piece to land 2 squares away
+ * - Jump: Capture by jumping over an enemy piece to land 2 squares away
+ */
 export function calculateLegalMoves(
   square: string,
   boardState: BoardState,
   playerColor: string,
-  game: GameData,
+  game: GameData
 ): string[] {
-  const piece = boardState[square]
-  if (!piece || piece.color !== playerColor) return []
+  const piece = boardState[square];
+  if (!piece || piece.color !== playerColor) return [];
 
-  const moves: string[] = []
+  const moves: string[] = [];
+  const ownCastle = playerColor === "white" ? WHITE_CASTLE : BLACK_CASTLE;
 
-  // Plain moves (one square in any direction)
+  // Check all 8 directions
   for (const direction of DIRECTIONS) {
-    const adjacent = getAdjacentSquare(square, direction)
-    if (adjacent && !boardState[adjacent]) {
-      // Check castle restrictions
-      const ownCastle = playerColor === "white" ? WHITE_CASTLE : BLACK_CASTLE
-      if (!ownCastle.includes(adjacent)) {
-        moves.push(adjacent)
-      }
+    const adjacent = getAdjacentSquare(square, direction);
+    if (!adjacent) continue;
+
+    const adjacentPiece = boardState[adjacent];
+
+    // PLAIN MOVE: One square to an empty square (not own castle)
+    if (!adjacentPiece && !ownCastle.includes(adjacent)) {
+      moves.push(adjacent);
     }
-  }
 
-  // Courser moves (jump over friendly pieces)
-  for (const direction of DIRECTIONS) {
-    const adjacent = getAdjacentSquare(square, direction)
-    if (adjacent && boardState[adjacent]?.color === playerColor) {
-      const landing = getAdjacentSquare(adjacent, direction)
+    // COURSER MOVE: Jump over friendly piece
+    if (adjacentPiece?.color === playerColor) {
+      const landing = getAdjacentSquare(adjacent, direction);
       if (landing && !boardState[landing]) {
-        moves.push(landing)
+        moves.push(landing);
       }
     }
-  }
 
-  // Jump moves (capture enemy pieces) - simplified for now
-  for (const direction of DIRECTIONS) {
-    const adjacent = getAdjacentSquare(square, direction)
-    if (adjacent && boardState[adjacent]?.color !== playerColor && boardState[adjacent]) {
-      const landing = getAdjacentSquare(adjacent, direction)
+    // JUMP MOVE: Capture by jumping over enemy piece
+    if (adjacentPiece?.color !== playerColor && adjacentPiece) {
+      const landing = getAdjacentSquare(adjacent, direction);
       if (landing && !boardState[landing]) {
-        moves.push(landing)
+        moves.push(landing);
       }
     }
   }
 
-  return moves
+  return moves;
 }
 
-// Make a move and return the new board state
+// ============================================================================
+// MOVE EXECUTION
+// ============================================================================
+
+/**
+ * Execute a move and return the new board state
+ *
+ * @returns Result object with success status, new board state, and move details
+ */
 export function makeMove(
   from: string,
   to: string,
   boardState: BoardState,
   playerColor: string,
-  game: GameData,
-): {
-  success: boolean
-  newBoardState?: BoardState
-  moveNotation?: string
-  moveType?: string
-  capturedPieces?: string[]
-  isCastleMove?: boolean
-  error?: string
-} {
-  const piece = boardState[from]
+  game: GameData
+): MoveResult {
+  const piece = boardState[from];
   if (!piece || piece.color !== playerColor) {
-    return { success: false, error: "Invalid piece" }
+    return { success: false, error: "Invalid piece" };
   }
 
-  const newBoardState = { ...boardState }
-  const capturedPieces: string[] = []
+  // Parse move details
+  const { file: fromFile, rank: fromRank } = parseSquare(from);
+  const { file: toFile, rank: toRank } = parseSquare(to);
+  const distance = Math.max(
+    Math.abs(toFile - fromFile),
+    Math.abs(toRank - fromRank)
+  );
 
-  // Determine move type
-  const { file: fromFile, rank: fromRank } = parseSquare(from)
-  const { file: toFile, rank: toRank } = parseSquare(to)
-  const fileDiff = Math.abs(toFile - fromFile)
-  const rankDiff = Math.abs(toRank - fromRank)
-  const distance = Math.max(fileDiff, rankDiff)
+  const direction: [number, number] = [
+    toFile > fromFile ? 1 : toFile < fromFile ? -1 : 0,
+    toRank > fromRank ? 1 : toRank < fromRank ? -1 : 0,
+  ];
 
-  let moveType = "plain"
-  let moveNotation = `${from}-${to}`
-
-  // Check if it's a castle move
-  const ownCastle = playerColor === "white" ? WHITE_CASTLE : BLACK_CASTLE
-  const isCastleMove = ownCastle.includes(to)
+  // Determine move type and handle captures
+  const newBoardState = { ...boardState };
+  const capturedPieces: string[] = [];
+  let moveType = "plain";
+  let moveNotation = `${from}-${to}`;
 
   if (distance === 1) {
-    // Plain move or capture
+    // PLAIN MOVE: one square
     if (boardState[to]) {
-      return { success: false, error: "Square occupied" }
+      return { success: false, error: "Square occupied" };
     }
-    moveType = "plain"
-    moveNotation = `${from}-${to}`
+    moveType = "plain";
   } else if (distance === 2) {
-    // Courser or jump
-    const direction: [number, number] = [
-      toFile > fromFile ? 1 : toFile < fromFile ? -1 : 0,
-      toRank > fromRank ? 1 : toRank < fromRank ? -1 : 0,
-    ]
-    const middle = getAdjacentSquare(from, direction)
+    // COURSER or JUMP: two squares
+    const middle = getAdjacentSquare(from, direction);
 
     if (middle && boardState[middle]) {
-      if (boardState[middle].color === playerColor) {
-        moveType = "Courser"
-        moveNotation = `${from}-${to}`
+      const middlePiece = boardState[middle];
+
+      if (middlePiece.color === playerColor) {
+        // COURSER: jumping over friendly piece
+        moveType = "Courser";
       } else {
-        moveType = "jump"
-        moveNotation = `${from}x${to}`
-        capturedPieces.push(middle)
-        newBoardState[middle] = null
+        // JUMP: capturing enemy piece
+        moveType = "jump";
+        moveNotation = `${from}x${to}`;
+        capturedPieces.push(middle);
+        newBoardState[middle] = null;
       }
     }
   }
 
-  // Execute move
-  newBoardState[to] = piece
-  newBoardState[from] = null
+  // Execute the move
+  newBoardState[to] = piece;
+  newBoardState[from] = null;
+
+  // Check if move is into a castle square
+  const ownCastle = playerColor === "white" ? WHITE_CASTLE : BLACK_CASTLE;
+  const isCastleMove = ownCastle.includes(to);
 
   return {
     success: true,
@@ -354,296 +451,139 @@ export function makeMove(
     moveType,
     capturedPieces,
     isCastleMove,
-  }
+  };
 }
 
-// Check win conditions
-export function checkWinCondition(boardState: BoardState, game: GameData, playerColor: string): string | null {
-  const opponentCastle = playerColor === "white" ? BLACK_CASTLE : WHITE_CASTLE
+// ============================================================================
+// WIN CONDITION CHECKING
+// ============================================================================
 
-  // Check if player has 2 pieces in opponent's castle
-  let piecesInCastle = 0
-  for (const square of opponentCastle) {
-    if (boardState[square]?.color === playerColor) {
-      piecesInCastle++
-    }
-  }
+/**
+ * Check if the current player has won the game
+ *
+ * Win conditions:
+ * 1. Castle occupation: 2 or more pieces in opponent's castle
+ * 2. Capture all: Opponent has no pieces remaining
+ *
+ * @returns Win reason string or null if no win
+ */
+export function checkWinCondition(
+  boardState: BoardState,
+  game: GameData,
+  playerColor: string
+): string | null {
+  const opponentColor = playerColor === "white" ? "black" : "white";
+  const opponentCastle = playerColor === "white" ? BLACK_CASTLE : WHITE_CASTLE;
+
+  // WIN CONDITION 1: Castle Occupation
+  const piecesInCastle = opponentCastle.filter(
+    (square) => boardState[square]?.color === playerColor
+  ).length;
 
   if (piecesInCastle >= 2) {
-    return "castle_occupation"
+    return "castle_occupation";
   }
 
-  // Check if opponent has no pieces left
-  const opponentColor = playerColor === "white" ? "black" : "white"
-  let opponentPieces = 0
-  for (const square of ALL_SQUARES) {
-    if (boardState[square]?.color === opponentColor) {
-      opponentPieces++
-    }
-  }
+  // WIN CONDITION 2: Capture All
+  const opponentPieces = ALL_SQUARES.filter(
+    (square) => boardState[square]?.color === opponentColor
+  ).length;
 
   if (opponentPieces === 0) {
-    return "capture_all"
+    return "capture_all";
   }
 
-  return null
+  return null;
 }
 
-// Reconstruct board state from move history
+// ============================================================================
+// BOARD STATE RECONSTRUCTION
+// ============================================================================
+
+/**
+ * Reconstruct board state from move history up to a specific move index
+ * This is used for viewing previous moves in the game
+ *
+ * @param moveHistory Array of move notations (e.g., ["E6-E7", "E10xE8"])
+ * @param moveIndex Number of moves to apply (0 = initial state)
+ */
 export function reconstructBoardState(
   moveHistory: string[],
-  moveIndex: number,
-): Record<string, { type: string; color: string } | null> {
-  // Start with initial board state
-  const boardState = getInitialBoardState()
+  moveIndex: number
+): BoardState {
+  const boardState = getInitialBoardState();
 
-  // Apply moves up to moveIndex
+  // Apply each move in sequence
   for (let i = 0; i < moveIndex; i++) {
-    const move = moveHistory[i]
-    // Parse move notation (e.g., "E6-E7" or "E6xE8")
-    const isCapture = move.includes("x")
-    const parts = move.split(isCapture ? "x" : "-")
-    if (parts.length !== 2) continue
+    const move = moveHistory[i];
 
-    const from = parts[0]
-    const to = parts[1]
+    // Parse move notation: "E6-E7" or "E6xE8"
+    const isCapture = move.includes("x");
+    const parts = move.split(isCapture ? "x" : "-");
+    if (parts.length !== 2) continue;
+
+    const [from, to] = parts;
 
     // Move the piece
     if (boardState[from]) {
-      boardState[to] = boardState[from]
-      boardState[from] = null
+      boardState[to] = boardState[from];
+      boardState[from] = null;
 
-      // Handle captures
+      // Handle capture (remove the jumped-over piece)
       if (isCapture) {
-        // Find the captured piece (middle square)
-        const { file: fromFile, rank: fromRank } = parseSquare(from)
-        const { file: toFile, rank: toRank } = parseSquare(to)
+        const { file: fromFile, rank: fromRank } = parseSquare(from);
+        const { file: toFile, rank: toRank } = parseSquare(to);
         const direction: [number, number] = [
           toFile > fromFile ? 1 : toFile < fromFile ? -1 : 0,
           toRank > fromRank ? 1 : toRank < fromRank ? -1 : 0,
-        ]
-        const middle = getAdjacentSquare(from, direction)
+        ];
+        const middle = getAdjacentSquare(from, direction);
         if (middle) {
-          boardState[middle] = null
+          boardState[middle] = null;
         }
       }
     }
   }
 
-  return boardState
+  return boardState;
 }
 
-// Helper function to get initial board state
-export function getInitialBoardState(): Record<string, { type: string; color: string } | null> {
-  const board: Record<string, { type: string; color: string } | null> = {}
+// ============================================================================
+// INITIAL BOARD SETUP
+// ============================================================================
 
-  // Initialize all 176 squares as null
-  const allSquares = [
-    "G1",
-    "H1",
-    "D2",
-    "E2",
-    "F2",
-    "G2",
-    "H2",
-    "I2",
-    "J2",
-    "K2",
-    "C3",
-    "D3",
-    "E3",
-    "F3",
-    "G3",
-    "H3",
-    "I3",
-    "J3",
-    "K3",
-    "L3",
-    "B4",
-    "C4",
-    "D4",
-    "E4",
-    "F4",
-    "G4",
-    "H4",
-    "I4",
-    "J4",
-    "K4",
-    "L4",
-    "M4",
-    "A5",
-    "B5",
-    "C5",
-    "D5",
-    "E5",
-    "F5",
-    "G5",
-    "H5",
-    "I5",
-    "J5",
-    "K5",
-    "L5",
-    "M5",
-    "N5",
-    "A6",
-    "B6",
-    "C6",
-    "D6",
-    "E6",
-    "F6",
-    "G6",
-    "H6",
-    "I6",
-    "J6",
-    "K6",
-    "L6",
-    "M6",
-    "N6",
-    "A7",
-    "B7",
-    "C7",
-    "D7",
-    "E7",
-    "F7",
-    "G7",
-    "H7",
-    "I7",
-    "J7",
-    "K7",
-    "L7",
-    "M7",
-    "N7",
-    "A8",
-    "B8",
-    "C8",
-    "D8",
-    "E8",
-    "F8",
-    "G8",
-    "H8",
-    "I8",
-    "J8",
-    "K8",
-    "L8",
-    "M8",
-    "N8",
-    "A9",
-    "B9",
-    "C9",
-    "D9",
-    "E9",
-    "F9",
-    "G9",
-    "H9",
-    "I9",
-    "J9",
-    "K9",
-    "L9",
-    "M9",
-    "N9",
-    "A10",
-    "B10",
-    "C10",
-    "D10",
-    "E10",
-    "F10",
-    "G10",
-    "H10",
-    "I10",
-    "J10",
-    "K10",
-    "L10",
-    "M10",
-    "N10",
-    "A11",
-    "B11",
-    "C11",
-    "D11",
-    "E11",
-    "F11",
-    "G11",
-    "H11",
-    "I11",
-    "J11",
-    "K11",
-    "L11",
-    "M11",
-    "N11",
-    "A12",
-    "B12",
-    "C12",
-    "D12",
-    "E12",
-    "F12",
-    "G12",
-    "H12",
-    "I12",
-    "J12",
-    "K12",
-    "L12",
-    "M12",
-    "N12",
-    "B13",
-    "C13",
-    "D13",
-    "E13",
-    "F13",
-    "G13",
-    "H13",
-    "I13",
-    "J13",
-    "K13",
-    "L13",
-    "M13",
-    "C14",
-    "D14",
-    "E14",
-    "F14",
-    "G14",
-    "H14",
-    "I14",
-    "J14",
-    "K14",
-    "L14",
-    "D15",
-    "E15",
-    "F15",
-    "G15",
-    "H15",
-    "I15",
-    "J15",
-    "K15",
-    "G16",
-    "H16",
-  ]
+/**
+ * Create the initial board state for a new game
+ *
+ * Board layout:
+ * - White pieces: Ranks 6-7
+ * - Black pieces: Ranks 10-11
+ * - White castle: G1, H1
+ * - Black castle: G16, H16
+ */
+export function getInitialBoardState(): BoardState {
+  const board: BoardState = {};
 
-  allSquares.forEach((square) => {
-    board[square] = null
-  })
+  // Initialize all squares as empty
+  ALL_SQUARES.forEach((square) => {
+    board[square] = null;
+  });
 
-  // White pieces (rows 6-7)
-  const whiteKnights = ["C6", "D6", "K6", "L6", "C7", "D7", "K7", "L7"]
-  const whiteMen = ["E6", "E7", "F6", "F7", "G6", "G7", "H6", "H7", "I6", "I7", "J6", "J7"]
+  // Place white pieces
+  WHITE_KNIGHTS.forEach((square) => {
+    board[square] = { type: "knight", color: "white" };
+  });
+  WHITE_MEN.forEach((square) => {
+    board[square] = { type: "man", color: "white" };
+  });
 
-  whiteKnights.forEach((square) => {
-    board[square] = { type: "knight", color: "white" }
-  })
+  // Place black pieces
+  BLACK_KNIGHTS.forEach((square) => {
+    board[square] = { type: "knight", color: "black" };
+  });
+  BLACK_MEN.forEach((square) => {
+    board[square] = { type: "man", color: "black" };
+  });
 
-  whiteMen.forEach((square) => {
-    board[square] = { type: "man", color: "white" }
-  })
-
-  // Black pieces (rows 10-11)
-  const blackKnights = ["C10", "D10", "K10", "L10", "C11", "D11", "K11", "L11"]
-  const blackMen = ["E10", "E11", "F10", "F11", "G10", "G11", "H10", "H11", "I10", "I11", "J10", "J11"]
-
-  blackKnights.forEach((square) => {
-    board[square] = { type: "knight", color: "black" }
-  })
-
-  blackMen.forEach((square) => {
-    board[square] = { type: "man", color: "black" }
-  })
-
-  return board
+  return board;
 }
