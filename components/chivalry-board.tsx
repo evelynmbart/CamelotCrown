@@ -19,16 +19,17 @@ export function ChivalryBoard({
   playerColor,
   disabled = false,
 }: ChivalryBoardProps) {
-  // Define the board layout (176 squares in diamond shape)
+  // Define the Camelot board layout (160 squares)
   const rows = [
-    { rank: 16, squares: ["G16", "H16"] },
+    { rank: 16, squares: ["F16", "G16"] },
     {
       rank: 15,
-      squares: ["D15", "E15", "F15", "G15", "H15", "I15", "J15", "K15"],
+      squares: ["C15", "D15", "E15", "F15", "G15", "H15", "I15", "J15"],
     },
     {
       rank: 14,
       squares: [
+        "B14",
         "C14",
         "D14",
         "E14",
@@ -38,12 +39,12 @@ export function ChivalryBoard({
         "I14",
         "J14",
         "K14",
-        "L14",
       ],
     },
     {
       rank: 13,
       squares: [
+        "A13",
         "B13",
         "C13",
         "D13",
@@ -55,7 +56,6 @@ export function ChivalryBoard({
         "J13",
         "K13",
         "L13",
-        "M13",
       ],
     },
     {
@@ -73,8 +73,6 @@ export function ChivalryBoard({
         "J12",
         "K12",
         "L12",
-        "M12",
-        "N12",
       ],
     },
     {
@@ -92,8 +90,6 @@ export function ChivalryBoard({
         "J11",
         "K11",
         "L11",
-        "M11",
-        "N11",
       ],
     },
     {
@@ -111,8 +107,6 @@ export function ChivalryBoard({
         "J10",
         "K10",
         "L10",
-        "M10",
-        "N10",
       ],
     },
     {
@@ -130,8 +124,6 @@ export function ChivalryBoard({
         "J9",
         "K9",
         "L9",
-        "M9",
-        "N9",
       ],
     },
     {
@@ -149,8 +141,6 @@ export function ChivalryBoard({
         "J8",
         "K8",
         "L8",
-        "M8",
-        "N8",
       ],
     },
     {
@@ -168,8 +158,6 @@ export function ChivalryBoard({
         "J7",
         "K7",
         "L7",
-        "M7",
-        "N7",
       ],
     },
     {
@@ -187,8 +175,6 @@ export function ChivalryBoard({
         "J6",
         "K6",
         "L6",
-        "M6",
-        "N6",
       ],
     },
     {
@@ -206,13 +192,12 @@ export function ChivalryBoard({
         "J5",
         "K5",
         "L5",
-        "M5",
-        "N5",
       ],
     },
     {
       rank: 4,
       squares: [
+        "A4",
         "B4",
         "C4",
         "D4",
@@ -224,15 +209,14 @@ export function ChivalryBoard({
         "J4",
         "K4",
         "L4",
-        "M4",
       ],
     },
     {
       rank: 3,
-      squares: ["C3", "D3", "E3", "F3", "G3", "H3", "I3", "J3", "K3", "L3"],
+      squares: ["B3", "C3", "D3", "E3", "F3", "G3", "H3", "I3", "J3", "K3"],
     },
-    { rank: 2, squares: ["D2", "E2", "F2", "G2", "H2", "I2", "J2", "K2"] },
-    { rank: 1, squares: ["G1", "H1"] },
+    { rank: 2, squares: ["C2", "D2", "E2", "F2", "G2", "H2", "I2", "J2"] },
+    { rank: 1, squares: ["F1", "G1"] },
   ];
 
   // Rotate 180 degrees for black player (black at bottom)
@@ -245,7 +229,7 @@ export function ChivalryBoard({
       : rows;
 
   const isCastleSquare = (square: string) => {
-    return ["G1", "H1", "G16", "H16"].includes(square);
+    return ["F1", "G1", "F16", "G16"].includes(square);
   };
 
   const getPieceSymbol = (piece: { type: string; color: string }) => {
@@ -256,23 +240,8 @@ export function ChivalryBoard({
     }
   };
 
-  // All files in order (A-N)
-  const allFiles = [
-    "A",
-    "B",
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "H",
-    "I",
-    "J",
-    "K",
-    "L",
-    "M",
-    "N",
-  ];
+  // All files in order (A-L for Camelot)
+  const allFiles = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
   // All ranks in order (1-16)
   const allRanks = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];

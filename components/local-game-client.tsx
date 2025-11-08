@@ -1,167 +1,157 @@
 "use client";
 
 import {
-  calculateLegalMoves,
   checkWinCondition,
-  makeMove,
+  createEmptyTurnState,
+  executeStep,
+  getInitialBoardState,
+  getInitialMoves,
+  getTurnNotation,
+  hasJumpAvailable,
+  type BoardState,
+  type TurnState,
 } from "@/lib/chivalry-logic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChivalryBoard } from "./chivalry-board";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 
-type BoardState = Record<string, { type: string; color: string } | null>;
-
-// Initial board setup
-const INITIAL_BOARD: BoardState = {
-  // White pieces (bottom)
-  B7: { type: "knight", color: "white" },
-  C7: { type: "man", color: "white" },
-  D7: { type: "man", color: "white" },
-  E7: { type: "man", color: "white" },
-  F7: { type: "man", color: "white" },
-  G7: { type: "man", color: "white" },
-  H7: { type: "man", color: "white" },
-  I7: { type: "man", color: "white" },
-  J7: { type: "man", color: "white" },
-  K7: { type: "man", color: "white" },
-  L7: { type: "man", color: "white" },
-  M7: { type: "knight", color: "white" },
-  B6: { type: "man", color: "white" },
-  C6: { type: "man", color: "white" },
-  D6: { type: "man", color: "white" },
-  E6: { type: "man", color: "white" },
-  F6: { type: "man", color: "white" },
-  G6: { type: "man", color: "white" },
-  H6: { type: "man", color: "white" },
-  I6: { type: "man", color: "white" },
-  J6: { type: "man", color: "white" },
-  K6: { type: "man", color: "white" },
-  L6: { type: "man", color: "white" },
-  M6: { type: "man", color: "white" },
-  // Black pieces (top)
-  B11: { type: "knight", color: "black" },
-  C11: { type: "man", color: "black" },
-  D11: { type: "man", color: "black" },
-  E11: { type: "man", color: "black" },
-  F11: { type: "man", color: "black" },
-  G11: { type: "man", color: "black" },
-  H11: { type: "man", color: "black" },
-  I11: { type: "man", color: "black" },
-  J11: { type: "man", color: "black" },
-  K11: { type: "man", color: "black" },
-  L11: { type: "man", color: "black" },
-  M11: { type: "knight", color: "black" },
-  B10: { type: "man", color: "black" },
-  C10: { type: "man", color: "black" },
-  D10: { type: "man", color: "black" },
-  E10: { type: "man", color: "black" },
-  F10: { type: "man", color: "black" },
-  G10: { type: "man", color: "black" },
-  H10: { type: "man", color: "black" },
-  I10: { type: "man", color: "black" },
-  J10: { type: "man", color: "black" },
-  K10: { type: "man", color: "black" },
-  L10: { type: "man", color: "black" },
-  M10: { type: "knight", color: "black" },
-};
-
 export function LocalGameClient() {
-  const [boardState, setBoardState] = useState(INITIAL_BOARD);
+  // Game state
+  const [boardState, setBoardState] = useState<BoardState>(() =>
+    getInitialBoardState()
+  );
   const [currentTurn, setCurrentTurn] = useState<"white" | "black">("white");
+  const [winner, setWinner] = useState<string | null>(null);
+
+  // Turn state
+  const [turnState, setTurnState] = useState<TurnState | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [legalMoves, setLegalMoves] = useState<string[]>([]);
+
+  // History
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [winner, setWinner] = useState<string | null>(null);
-  const [gameData] = useState({
-    white_castle_moves: 0,
-    black_castle_moves: 0,
-    board_state: INITIAL_BOARD,
-  });
+
+  // UI messages
+  const [message, setMessage] = useState<string>("");
+
+  // Check for mandatory jumps at turn start
+  useEffect(() => {
+    if (winner || turnState) return;
+
+    const hasJump = hasJumpAvailable(boardState, currentTurn);
+    if (hasJump) {
+      setMessage("You must capture! Select a piece to see available captures.");
+    } else {
+      setMessage("");
+    }
+  }, [currentTurn, boardState, winner, turnState]);
 
   const handleSquareClick = (square: string) => {
     if (winner) return;
 
-    // If no square selected, select this square if it has a piece of current player
-    if (!selectedSquare) {
-      const piece = boardState[square];
-      if (piece && piece.color === currentTurn) {
-        setSelectedSquare(square);
-        const moves = calculateLegalMoves(
-          square,
-          boardState,
-          currentTurn,
-          gameData
-        );
-        setLegalMoves(moves);
-      }
-      return;
-    }
+    // If turn in progress
+    if (turnState) {
+      const currentSquare = turnState.moves[turnState.moves.length - 1];
 
-    // If clicking the same square, deselect
-    if (selectedSquare === square) {
-      setSelectedSquare(null);
-      setLegalMoves([]);
-      return;
-    }
-
-    // If clicking another piece of the same color, select that instead
-    const piece = boardState[square];
-    if (piece && piece.color === currentTurn) {
-      setSelectedSquare(square);
-      const moves = calculateLegalMoves(
-        square,
-        boardState,
-        currentTurn,
-        gameData
-      );
-      setLegalMoves(moves);
-      return;
-    }
-
-    // Try to make a move
-    if (legalMoves.includes(square)) {
-      const result = makeMove(
-        selectedSquare,
-        square,
-        boardState,
-        currentTurn,
-        gameData
-      );
-
-      if (result.success && result.newBoardState) {
-        setBoardState(result.newBoardState);
-        setMoveHistory([
-          ...moveHistory,
-          result.moveNotation || `${selectedSquare}-${square}`,
-        ]);
-
-        // Check for win condition
-        const winCondition = checkWinCondition(
-          result.newBoardState,
-          gameData,
-          currentTurn
-        );
-        if (winCondition) {
-          setWinner(currentTurn);
-        } else {
-          // Switch turns
-          setCurrentTurn(currentTurn === "white" ? "black" : "white");
+      // Clicking current position - deselect
+      if (square === currentSquare) {
+        if (turnState.mustContinue) {
+          // Can't deselect during mandatory continuation
+          return;
         }
-
         setSelectedSquare(null);
         setLegalMoves([]);
+        return;
       }
+
+      // Clicking a legal move - continue turn
+      if (legalMoves.includes(square)) {
+        const result = executeStep(square, boardState, turnState, currentTurn);
+
+        if (result.success && result.newBoardState && result.newTurnState) {
+          setBoardState(result.newBoardState);
+          setTurnState(result.newTurnState);
+          setSelectedSquare(
+            result.newTurnState.moves[result.newTurnState.moves.length - 1]
+          );
+          setLegalMoves(result.legalNextMoves || []);
+
+          // Update message
+          if (result.newTurnState.mustContinue) {
+            setMessage("You must continue capturing!");
+          } else if (result.newTurnState.canContinue) {
+            setMessage("You may continue cantering or click 'Submit Turn'.");
+          } else {
+            setMessage("Click 'Submit Turn' to end your turn.");
+          }
+        }
+        return;
+      }
+
+      // Clicking elsewhere during mandatory continuation - not allowed
+      if (turnState.mustContinue) {
+        return;
+      }
+
+      // Clicking elsewhere during optional continuation - allow it (implicitly ends turn)
+      // Fall through to piece selection
+    }
+
+    // Starting a new turn or selecting a piece
+    const piece = boardState[square];
+    if (piece && piece.color === currentTurn) {
+      const moves = getInitialMoves(square, boardState, currentTurn);
+
+      if (moves.length === 0) {
+        setMessage("This piece has no legal moves.");
+        return;
+      }
+
+      setSelectedSquare(square);
+      setLegalMoves(moves);
+
+      // Start a new turn state
+      setTurnState(createEmptyTurnState(square));
+      setMessage("Select where to move.");
     }
   };
 
+  const handleSubmitTurn = () => {
+    if (!turnState || turnState.mustContinue) return;
+
+    // Record the move
+    const notation = getTurnNotation(turnState);
+    if (notation) {
+      setMoveHistory([...moveHistory, notation]);
+    }
+
+    // Check for win
+    const winCondition = checkWinCondition(boardState, currentTurn);
+    if (winCondition) {
+      setWinner(currentTurn);
+      setMessage(`${currentTurn} wins by ${winCondition}!`);
+    } else {
+      // Switch turns
+      setCurrentTurn(currentTurn === "white" ? "black" : "white");
+    }
+
+    // Reset turn state
+    setTurnState(null);
+    setSelectedSquare(null);
+    setLegalMoves([]);
+    setMessage("");
+  };
+
   const handleReset = () => {
-    setBoardState(INITIAL_BOARD);
+    setBoardState(getInitialBoardState());
     setCurrentTurn("white");
+    setTurnState(null);
     setSelectedSquare(null);
     setLegalMoves([]);
     setMoveHistory([]);
     setWinner(null);
+    setMessage("");
   };
 
   return (
@@ -186,9 +176,29 @@ export function LocalGameClient() {
               <span className="font-medium capitalize">{currentTurn}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Moves:</span>
+              <span className="text-muted-foreground">Completed Moves:</span>
               <span className="font-medium">{moveHistory.length}</span>
             </div>
+
+            {turnState && turnState.moves.length > 1 && (
+              <div className="mt-2 p-2 bg-accent rounded-md">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Current Turn:
+                </div>
+                <div className="font-mono text-xs">
+                  {turnState.moves.join(" → ")}
+                </div>
+              </div>
+            )}
+
+            {message && (
+              <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                <div className="text-sm text-amber-900 dark:text-amber-100">
+                  {message}
+                </div>
+              </div>
+            )}
+
             {winner && (
               <div className="mt-4 p-3 bg-primary/10 rounded-md text-center">
                 <div className="font-bold text-lg capitalize">
@@ -197,13 +207,23 @@ export function LocalGameClient() {
               </div>
             )}
           </div>
-          <Button
-            onClick={handleReset}
-            className="w-full mt-4 bg-transparent"
-            variant="outline"
-          >
-            New Game
-          </Button>
+
+          <div className="flex gap-2 mt-4">
+            <Button
+              onClick={handleSubmitTurn}
+              className="flex-1"
+              disabled={!turnState || turnState.mustContinue || !!winner}
+            >
+              Submit Turn
+            </Button>
+            <Button
+              onClick={handleReset}
+              className="bg-transparent"
+              variant="outline"
+            >
+              New Game
+            </Button>
+          </div>
         </Card>
 
         <Card className="p-4">
