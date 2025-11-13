@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { ChevronDown } from "lucide-react";
@@ -11,17 +12,33 @@ export default async function HomePage() {
     redirect("/lobby");
   }
 
+  // Get stats from database
+  const { count: gamesCount } = await supabase
+    .from("games")
+    .select("*", { count: "exact", head: true });
+
+  const { count: playersCount } = await supabase
+    .from("profiles")
+    .select("*", { count: "exact", head: true });
+
   return (
     <>
       <main className="bg-background h-screen flex items-center justify-space-between flex-col">
-        <div className="flex items-center justify-center gap-6 pt-8 text-lg">
+        <div className="flex items-center justify-end w-full h-12 p-2 ">
+          <ThemeToggle />
+        </div>
+        <div className="flex items-center justify-center gap-6 text-lg">
           <span>
-            <span className="font-bold text-primary text-2xl">120,092</span>{" "}
-            <span>playing now</span>
+            <span className="font-bold text-primary text-2xl">
+              {gamesCount ?? 0}
+            </span>{" "}
+            <span>games</span>
           </span>
           <span>
-            <span className="font-bold text-primary text-2xl">19,281,832</span>{" "}
-            <span>games today</span>
+            <span className="font-bold text-primary text-2xl">
+              {playersCount ?? 0}
+            </span>{" "}
+            <span>players</span>
           </span>
         </div>
         <section className=" flex items-center justify-center gap-20 h-full w-ful">
@@ -41,7 +58,7 @@ export default async function HomePage() {
             </Button>
           </div>
         </section>
-        <div className="flex items-center justify-center flex-col font-bold">
+        <div className="flex items-center justify-center flex-col font-bold mb-4 text-primary">
           <button>Learn more</button>
           <ChevronDown />
         </div>
