@@ -41,12 +41,12 @@ export default async function HomePage() {
             <span>players</span>
           </span>
         </div>
-        <section className=" flex items-center justify-center gap-20 h-full w-ful">
+        <section className="flex flex-col items-center justify-center gap-8 h-full w-full lg:flex-row lg:gap-20">
           <div className="flex items-center justify-center">
             <img
               src="/camelotcrown.png"
               alt="Crowned knight piece surrounded by two pawn pieces"
-              className="w-[350px] h-[350px] object-cover"
+              className="w-[250px] h-[250px] object-cover lg:w-[450px] lg:h-[450px]"
             />
           </div>
           <div className="">
