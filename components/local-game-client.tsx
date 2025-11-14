@@ -1,16 +1,7 @@
 "use client";
 
-import {
-  checkWinCondition,
-  createEmptyTurnState,
-  executeStep,
-  getInitialBoardState,
-  getInitialMoves,
-  getTurnNotation,
-  hasJumpAvailable,
-  type BoardState,
-  type TurnState,
-} from "@/lib/chivalry-logic";
+import { Camelot } from "@/lib/camelot";
+import { BoardState, LegalMove, TurnState } from "@/lib/camelot/types";
 import { useEffect, useState } from "react";
 import { ChivalryBoard } from "./chivalry-board";
 import { Button } from "./ui/button";
@@ -18,8 +9,8 @@ import { Card } from "./ui/card";
 
 export function LocalGameClient() {
   // Game state
-  const [boardState, setBoardState] = useState<BoardState>(() =>
-    getInitialBoardState()
+  const [boardState, setBoardState] = useState<BoardState>(
+    Camelot.Board.getInitialBoardState()
   );
   const [currentTurn, setCurrentTurn] = useState<"white" | "black">("white");
   const [winner, setWinner] = useState<string | null>(null);
@@ -27,7 +18,7 @@ export function LocalGameClient() {
   // Turn state
   const [turnState, setTurnState] = useState<TurnState | null>(null);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [legalMoves, setLegalMoves] = useState<LegalMove[]>([]);
 
   // History
   const [moveHistory, setMoveHistory] = useState<string[]>([]);
@@ -39,7 +30,9 @@ export function LocalGameClient() {
   useEffect(() => {
     if (winner || turnState) return;
 
-    const hasJump = hasJumpAvailable(boardState, currentTurn);
+    const hasJump =
+      Camelot.Logic.checkFirstMovePossibleJumps(boardState, currentTurn)
+        .length > 0;
     if (hasJump) {
       setMessage("You must capture! Select a piece to see available captures.");
     } else {
@@ -53,44 +46,63 @@ export function LocalGameClient() {
     // If turn in progress
     if (turnState) {
       const currentSquare = turnState.moves[turnState.moves.length - 1];
+      console.log(
+        currentSquare,
+        "turnState",
+        turnState,
+        "legalMoves",
+        legalMoves
+      );
 
       // Clicking current position - deselect
       if (square === currentSquare) {
-        if (turnState.mustContinue) {
-          // Can't deselect during mandatory continuation
+        // Can't deselect if moves have been made
+        if (turnState.moves.length > 1) {
           return;
         }
+        setTurnState(null);
         setSelectedSquare(null);
         setLegalMoves([]);
         return;
       }
 
       // Clicking a legal move - continue turn
-      if (legalMoves.includes(square)) {
-        const result = executeStep(square, boardState, turnState, currentTurn);
+      if (legalMoves.some((move) => move.to === square)) {
+        const result = Camelot.Logic.executeStep(
+          square,
+          boardState,
+          turnState,
+          currentTurn,
+          legalMoves
+        );
 
         if (result.success && result.newBoardState && result.newTurnState) {
+          setMessage(result.message);
           setBoardState(result.newBoardState);
           setTurnState(result.newTurnState);
           setSelectedSquare(
             result.newTurnState.moves[result.newTurnState.moves.length - 1]
           );
-          setLegalMoves(result.legalNextMoves || []);
-
-          // Update message
-          if (result.newTurnState.mustContinue) {
-            setMessage("You must continue capturing!");
-          } else if (result.newTurnState.canContinue) {
-            setMessage("You may continue cantering or click 'Submit Turn'.");
-          } else {
-            setMessage("Click 'Submit Turn' to end your turn.");
+          setLegalMoves(result.legalNextMoves);
+          if (result.legalNextMoves.length === 0) {
+            setMessage(
+              "No more legal moves. Click Submit Turn to end your turn."
+            );
           }
+        }
+        if (!result.success) {
+          console.error("Error executing step", result.error);
         }
         return;
       }
 
       // Clicking elsewhere during mandatory continuation - not allowed
       if (turnState.mustContinue) {
+        return;
+      }
+
+      // Clicking elsewhere if no legal moves - not allowed
+      if (legalMoves.length === 0) {
         return;
       }
 
@@ -101,7 +113,11 @@ export function LocalGameClient() {
     // Starting a new turn or selecting a piece
     const piece = boardState[square];
     if (piece && piece.color === currentTurn) {
-      const moves = getInitialMoves(square, boardState, currentTurn);
+      const moves = Camelot.Logic.getInitialMoves(
+        square,
+        boardState,
+        currentTurn
+      );
 
       if (moves.length === 0) {
         setMessage("This piece has no legal moves.");
@@ -112,7 +128,7 @@ export function LocalGameClient() {
       setLegalMoves(moves);
 
       // Start a new turn state
-      setTurnState(createEmptyTurnState(square));
+      setTurnState(Camelot.Logic.createEmptyTurnState(square));
       setMessage("Select where to move.");
     }
   };
@@ -121,13 +137,16 @@ export function LocalGameClient() {
     if (!turnState || turnState.mustContinue) return;
 
     // Record the move
-    const notation = getTurnNotation(turnState);
+    const notation = Camelot.Logic.getTurnNotation(turnState);
     if (notation) {
       setMoveHistory([...moveHistory, notation]);
     }
 
     // Check for win
-    const winCondition = checkWinCondition(boardState, currentTurn);
+    const winCondition = Camelot.Logic.checkWinCondition(
+      boardState,
+      currentTurn
+    );
     if (winCondition) {
       setWinner(currentTurn);
       setMessage(`${currentTurn} wins by ${winCondition}!`);
@@ -144,7 +163,7 @@ export function LocalGameClient() {
   };
 
   const handleReset = () => {
-    setBoardState(getInitialBoardState());
+    setBoardState(Camelot.Board.getInitialBoardState());
     setCurrentTurn("white");
     setTurnState(null);
     setSelectedSquare(null);

@@ -6,16 +6,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Camelot } from "@/lib/camelot";
 import {
-  checkWinCondition,
-  createEmptyTurnState,
-  executeStep,
-  getInitialMoves,
-  getTurnNotation,
-  hasJumpAvailable,
+  LegalMove,
   type BoardState,
   type TurnState,
-} from "@/lib/chivalry-logic";
+} from "@/lib/camelot/types";
 import { updateEloRatings } from "@/lib/elo-system";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -53,7 +49,7 @@ export function GameClient({
 }) {
   const [game, setGame] = useState<GameData>(initialGame);
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
-  const [legalMoves, setLegalMoves] = useState<string[]>([]);
+  const [legalMoves, setLegalMoves] = useState<LegalMove[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Turn state for current player's turn
@@ -153,7 +149,9 @@ export function GameClient({
   useEffect(() => {
     if (!isPlayerTurn || game.status !== "active" || turnState) return;
 
-    const hasJump = hasJumpAvailable(game.board_state, playerColor);
+    const hasJump =
+      Camelot.Logic.checkFirstMovePossibleJumps(game.board_state, playerColor)
+        .length > 0;
     if (hasJump) {
       setMessage("You must capture! Select a piece to see available captures.");
     } else {
@@ -180,16 +178,18 @@ export function GameClient({
       }
 
       // Clicking a legal move - continue turn
-      if (legalMoves.includes(square)) {
-        const result = executeStep(
+      if (legalMoves.some((move) => move.to === square)) {
+        const result = Camelot.Logic.executeStep(
           square,
           game.board_state,
           turnState,
-          playerColor
+          playerColor,
+          legalMoves
         );
 
         if (result.success && result.newBoardState && result.newTurnState) {
           // Update local board state (not DB yet)
+          setMessage(result.message);
           setGame({
             ...game,
             board_state: result.newBoardState,
@@ -199,15 +199,6 @@ export function GameClient({
             result.newTurnState.moves[result.newTurnState.moves.length - 1]
           );
           setLegalMoves(result.legalNextMoves || []);
-
-          // Update message
-          if (result.newTurnState.mustContinue) {
-            setMessage("You must continue capturing!");
-          } else if (result.newTurnState.canContinue) {
-            setMessage("You may continue cantering or click 'Submit Turn'.");
-          } else {
-            setMessage("Click 'Submit Turn' to end your turn.");
-          }
         }
         return;
       }
@@ -224,7 +215,11 @@ export function GameClient({
     // Starting a new turn or selecting a piece
     const piece = game.board_state[square];
     if (piece && piece.color === playerColor) {
-      const moves = getInitialMoves(square, game.board_state, playerColor);
+      const moves = Camelot.Logic.getInitialMoves(
+        square,
+        game.board_state,
+        playerColor
+      );
 
       if (moves.length === 0) {
         setMessage("This piece has no legal moves.");
@@ -235,7 +230,7 @@ export function GameClient({
       setLegalMoves(moves);
 
       // Start a new turn state
-      setTurnState(createEmptyTurnState(square));
+      setTurnState(Camelot.Logic.createEmptyTurnState(square));
       setMessage("Select where to move.");
     }
   };
@@ -246,14 +241,17 @@ export function GameClient({
     setIsSubmitting(true);
     try {
       // Get turn notation
-      const notation = getTurnNotation(turnState);
+      const notation = Camelot.Logic.getTurnNotation(turnState);
       if (!notation) {
         throw new Error("Invalid turn notation");
       }
 
       // Check for win
       const nextTurn = playerColor === "white" ? "black" : "white";
-      const winCondition = checkWinCondition(game.board_state, playerColor);
+      const winCondition = Camelot.Logic.checkWinCondition(
+        game.board_state,
+        playerColor
+      );
 
       const updateData: any = {
         board_state: game.board_state,

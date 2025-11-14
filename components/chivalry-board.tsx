@@ -1,11 +1,12 @@
 "use client";
 
+import { LegalMove } from "@/lib/camelot/types";
 import { cn } from "@/lib/utils";
 
 interface ChivalryBoardProps {
   boardState: Record<string, { type: string; color: string } | null>;
   selectedSquare: string | null;
-  legalMoves: string[];
+  legalMoves: LegalMove[];
   onSquareClick: (square: string) => void;
   playerColor: string;
   disabled?: boolean;
@@ -276,7 +277,7 @@ export function ChivalryBoard({
             {row.squares.map((square) => {
               const piece = boardState[square];
               const isSelected = selectedSquare === square;
-              const isLegalMove = legalMoves.includes(square);
+              const isLegalMove = legalMoves.some((move) => move.to === square);
               const isCastle = isCastleSquare(square);
               const isLight =
                 (square.charCodeAt(0) + Number.parseInt(square.slice(1))) %
