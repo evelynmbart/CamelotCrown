@@ -1,5 +1,6 @@
 "use client";
 
+import { Camelot } from "@/lib/camelot";
 import { LegalMove } from "@/lib/camelot/types";
 import { cn } from "@/lib/utils";
 
@@ -20,205 +21,49 @@ export function ChivalryBoard({
   playerColor,
   disabled = false,
 }: ChivalryBoardProps) {
-  // Define the Camelot board layout (160 squares)
-  const rows = [
-    { rank: 16, squares: ["F16", "G16"] },
-    {
-      rank: 15,
-      squares: ["C15", "D15", "E15", "F15", "G15", "H15", "I15", "J15"],
-    },
-    {
-      rank: 14,
-      squares: [
-        "B14",
-        "C14",
-        "D14",
-        "E14",
-        "F14",
-        "G14",
-        "H14",
-        "I14",
-        "J14",
-        "K14",
-      ],
-    },
-    {
-      rank: 13,
-      squares: [
-        "A13",
-        "B13",
-        "C13",
-        "D13",
-        "E13",
-        "F13",
-        "G13",
-        "H13",
-        "I13",
-        "J13",
-        "K13",
-        "L13",
-      ],
-    },
-    {
-      rank: 12,
-      squares: [
-        "A12",
-        "B12",
-        "C12",
-        "D12",
-        "E12",
-        "F12",
-        "G12",
-        "H12",
-        "I12",
-        "J12",
-        "K12",
-        "L12",
-      ],
-    },
-    {
-      rank: 11,
-      squares: [
-        "A11",
-        "B11",
-        "C11",
-        "D11",
-        "E11",
-        "F11",
-        "G11",
-        "H11",
-        "I11",
-        "J11",
-        "K11",
-        "L11",
-      ],
-    },
-    {
-      rank: 10,
-      squares: [
-        "A10",
-        "B10",
-        "C10",
-        "D10",
-        "E10",
-        "F10",
-        "G10",
-        "H10",
-        "I10",
-        "J10",
-        "K10",
-        "L10",
-      ],
-    },
-    {
-      rank: 9,
-      squares: [
-        "A9",
-        "B9",
-        "C9",
-        "D9",
-        "E9",
-        "F9",
-        "G9",
-        "H9",
-        "I9",
-        "J9",
-        "K9",
-        "L9",
-      ],
-    },
-    {
-      rank: 8,
-      squares: [
-        "A8",
-        "B8",
-        "C8",
-        "D8",
-        "E8",
-        "F8",
-        "G8",
-        "H8",
-        "I8",
-        "J8",
-        "K8",
-        "L8",
-      ],
-    },
-    {
-      rank: 7,
-      squares: [
-        "A7",
-        "B7",
-        "C7",
-        "D7",
-        "E7",
-        "F7",
-        "G7",
-        "H7",
-        "I7",
-        "J7",
-        "K7",
-        "L7",
-      ],
-    },
-    {
-      rank: 6,
-      squares: [
-        "A6",
-        "B6",
-        "C6",
-        "D6",
-        "E6",
-        "F6",
-        "G6",
-        "H6",
-        "I6",
-        "J6",
-        "K6",
-        "L6",
-      ],
-    },
-    {
-      rank: 5,
-      squares: [
-        "A5",
-        "B5",
-        "C5",
-        "D5",
-        "E5",
-        "F5",
-        "G5",
-        "H5",
-        "I5",
-        "J5",
-        "K5",
-        "L5",
-      ],
-    },
-    {
-      rank: 4,
-      squares: [
-        "A4",
-        "B4",
-        "C4",
-        "D4",
-        "E4",
-        "F4",
-        "G4",
-        "H4",
-        "I4",
-        "J4",
-        "K4",
-        "L4",
-      ],
-    },
-    {
-      rank: 3,
-      squares: ["B3", "C3", "D3", "E3", "F3", "G3", "H3", "I3", "J3", "K3"],
-    },
-    { rank: 2, squares: ["C2", "D2", "E2", "F2", "G2", "H2", "I2", "J2"] },
-    { rank: 1, squares: ["F1", "G1"] },
-  ];
+  // Generate the Camelot board layout from Board.ALL_SQUARES
+  const rows = (() => {
+    const rankMap = new Map<number, string[]>();
+
+    // Group squares by rank
+    for (const square of Camelot.Board.ALL_SQUARES) {
+      const file = square.match(/[A-L]/)?.[0] || "";
+      const rank = parseInt(square.match(/\d+/)?.[0] || "0");
+
+      if (!rankMap.has(rank)) {
+        rankMap.set(rank, []);
+      }
+      rankMap.get(rank)!.push(square);
+    }
+
+    // Sort squares within each rank by file (A-L)
+    const allFiles = [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H",
+      "I",
+      "J",
+      "K",
+      "L",
+    ];
+    for (const squares of rankMap.values()) {
+      squares.sort((a, b) => {
+        const fileA = a.match(/[A-L]/)?.[0] || "";
+        const fileB = b.match(/[A-L]/)?.[0] || "";
+        return allFiles.indexOf(fileA) - allFiles.indexOf(fileB);
+      });
+    }
+
+    // Convert to array and sort by rank (descending: 16 to 1)
+    return Array.from(rankMap.entries())
+      .sort((a, b) => b[0] - a[0])
+      .map(([rank, squares]) => ({ rank, squares }));
+  })();
 
   // Rotate 180 degrees for black player (black at bottom)
   const displayRows =
@@ -230,7 +75,10 @@ export function ChivalryBoard({
       : rows;
 
   const isCastleSquare = (square: string) => {
-    return ["F1", "G1", "F16", "G16"].includes(square);
+    return (
+      Camelot.Board.WHITE_CASTLE.includes(square) ||
+      Camelot.Board.BLACK_CASTLE.includes(square)
+    );
   };
 
   const getPieceSymbol = (piece: { type: string; color: string }) => {
@@ -244,8 +92,8 @@ export function ChivalryBoard({
   // All files in order (A-L for Camelot)
   const allFiles = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
-  // All ranks in order (1-16)
-  const allRanks = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+  // Extract all unique ranks from the board
+  const allRanks = rows.map((row) => row.rank);
 
   // For black player, reverse the display
   const displayFiles =

@@ -168,10 +168,11 @@ export function GameClient({
 
       // Clicking current position - deselect
       if (square === currentSquare) {
-        if (turnState.mustContinue) {
-          // Can't deselect during mandatory continuation
+        // Can't deselect if moves have been made
+        if (turnState.moves.length > 1) {
           return;
         }
+        setTurnState(null);
         setSelectedSquare(null);
         setLegalMoves([]);
         return;
@@ -198,13 +199,26 @@ export function GameClient({
           setSelectedSquare(
             result.newTurnState.moves[result.newTurnState.moves.length - 1]
           );
-          setLegalMoves(result.legalNextMoves || []);
+          setLegalMoves(result.legalNextMoves);
+          if (result.legalNextMoves.length === 0) {
+            setMessage(
+              "No more legal moves. Click Submit Turn to end your turn."
+            );
+          }
+        }
+        if (!result.success) {
+          console.error("Error executing step", result.error);
         }
         return;
       }
 
       // Clicking elsewhere during mandatory continuation - not allowed
       if (turnState.mustContinue) {
+        return;
+      }
+
+      // Clicking elsewhere if no legal moves - not allowed
+      if (legalMoves.length === 0) {
         return;
       }
 
