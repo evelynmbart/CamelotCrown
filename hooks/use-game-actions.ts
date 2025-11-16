@@ -20,6 +20,7 @@ interface UseGameActionsProps {
   setLegalMoves: (moves: LegalMove[]) => void;
   message: string;
   setMessage: (message: string) => void;
+  currentMoveIndex: number;
   setCurrentMoveIndex: (index: number) => void;
   supabase: SupabaseClient;
 }
@@ -39,6 +40,7 @@ export function useGameActions({
   setLegalMoves,
   message,
   setMessage,
+  currentMoveIndex,
   setCurrentMoveIndex,
   supabase,
 }: UseGameActionsProps) {
@@ -134,6 +136,36 @@ export function useGameActions({
     }
   };
 
+  const handleTimeout = async () => {
+    // Double-check game is still active (prevent race conditions)
+    if (game.status !== "active") return;
+
+    const winnerId =
+      playerColor === "white" ? game.black_player_id : game.white_player_id;
+
+    // Use .eq() with status check to prevent double-timeout
+    const { error } = await supabase
+      .from("games")
+      .update({
+        status: "completed",
+        winner_id: winnerId,
+        win_reason: "timeout",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", game.id)
+      .eq("status", "active"); // Only update if still active
+
+    // Only update ELO if the update succeeded
+    if (!error) {
+      await updateEloRatings(
+        game.white_player_id,
+        game.black_player_id,
+        winnerId,
+        supabase
+      );
+    }
+  };
+
   const handleSubmitTurn = async () => {
     if (!turnState || turnState.mustContinue || isSubmitting) return;
 
@@ -152,12 +184,56 @@ export function useGameActions({
         playerColor
       );
 
+      // Capture client timestamp IMMEDIATELY when move is submitted
+      // This compensates for network lag
+      const clientMoveTime = new Date();
+      const now = new Date();
+      
       const updateData: any = {
         board_state: game.board_state,
         current_turn: winCondition ? game.current_turn : nextTurn,
         move_history: [...game.move_history, notation],
-        last_move_at: new Date().toISOString(),
+        last_move_at: now.toISOString(),
+        last_move_time: clientMoveTime.toISOString(), // Use client timestamp
       };
+
+      // Handle time control if present
+      if (game.time_control_minutes !== null && game.time_control_minutes !== undefined) {
+        const lastMoveTime = game.last_move_time ? new Date(game.last_move_time) : clientMoveTime;
+        
+        // Calculate elapsed time using CLIENT timestamps to avoid network lag penalty
+        const elapsedMs = clientMoveTime.getTime() - lastMoveTime.getTime();
+        
+        // Add 100ms buffer for lag compensation (generous but prevents edge cases)
+        const lagBufferMs = 100;
+        const adjustedElapsedMs = Math.max(0, elapsedMs - lagBufferMs);
+        
+        const currentPlayerTimeField = playerColor === "white" ? "white_time_remaining" : "black_time_remaining";
+        const currentPlayerTime = playerColor === "white" ? game.white_time_remaining : game.black_time_remaining;
+        
+        // Calculate new time: subtract elapsed time, add increment
+        // Don't add increment on first move (move_history.length === 0)
+        const isFirstMove = game.move_history.length === 0;
+        const incrementMs = isFirstMove ? 0 : (game.time_control_increment || 0) * 1000;
+        const newTime = Math.max(0, (currentPlayerTime || 0) - adjustedElapsedMs + incrementMs);
+        
+        // Check for timeout
+        if (newTime <= 0) {
+          const winnerId = playerColor === "white" ? game.black_player_id : game.white_player_id;
+          updateData.status = "completed";
+          updateData.winner_id = winnerId;
+          updateData.win_reason = "timeout";
+          updateData.completed_at = now.toISOString();
+          updateData[currentPlayerTimeField] = 0;
+        } else {
+          updateData[currentPlayerTimeField] = newTime;
+        }
+        
+        // Also update the opponent's time field (keep it the same)
+        const opponentPlayerTimeField = playerColor === "white" ? "black_time_remaining" : "white_time_remaining";
+        const opponentPlayerTime = playerColor === "white" ? game.black_time_remaining : game.white_time_remaining;
+        updateData[opponentPlayerTimeField] = opponentPlayerTime;
+      }
 
       // Check if turn ended in opponent's castle
       const lastSquare = turnState.moves[turnState.moves.length - 1];
@@ -258,18 +334,17 @@ export function useGameActions({
   };
 
   const goToPreviousMove = () => {
-    const currentIndex = game.move_history.length;
-    if (currentIndex > 0) {
-      setCurrentMoveIndex(currentIndex - 1);
+    if (currentMoveIndex > 0) {
+      setCurrentMoveIndex(currentMoveIndex - 1);
       setSelectedSquare(null);
       setLegalMoves([]);
       setTurnState(null);
     }
   };
 
-  const goToNextMove = (currentIndex: number) => {
-    if (currentIndex < game.move_history.length) {
-      setCurrentMoveIndex(currentIndex + 1);
+  const goToNextMove = () => {
+    if (currentMoveIndex < game.move_history.length) {
+      setCurrentMoveIndex(currentMoveIndex + 1);
       setSelectedSquare(null);
       setLegalMoves([]);
       setTurnState(null);
@@ -295,6 +370,7 @@ export function useGameActions({
     handleSquareClick,
     handleSubmitTurn,
     handleResign,
+    handleTimeout,
     goToFirstMove,
     goToPreviousMove,
     goToNextMove,

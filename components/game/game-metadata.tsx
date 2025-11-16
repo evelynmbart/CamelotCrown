@@ -5,6 +5,8 @@ interface GameMetadataProps {
   moveCount: number;
   whiteCastleMoves: number;
   blackCastleMoves: number;
+  timeControlMinutes?: number | null;
+  timeControlIncrement?: number | null;
   mobile?: boolean;
 }
 
@@ -13,8 +15,15 @@ export function GameMetadata({
   moveCount,
   whiteCastleMoves,
   blackCastleMoves,
+  timeControlMinutes,
+  timeControlIncrement,
   mobile = false,
 }: GameMetadataProps) {
+  const formatTimeControl = () => {
+    if (!timeControlMinutes) return "Unlimited";
+    const increment = timeControlIncrement || 0;
+    return `${timeControlMinutes}+${increment}`;
+  };
   return (
     <Card className={mobile ? "mx-2 mb-2 p-3" : "p-4 shrink-0"}>
       <h3
@@ -33,7 +42,7 @@ export function GameMetadata({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Time Control:</span>
-              <span className="text-foreground">15+10</span>
+              <span className="text-foreground">{formatTimeControl()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Rated:</span>
@@ -44,7 +53,7 @@ export function GameMetadata({
         {mobile && (
           <div className="flex justify-between">
             <span className="text-muted-foreground">Time Control:</span>
-            <span className="text-foreground">15+10</span>
+            <span className="text-foreground">{formatTimeControl()}</span>
           </div>
         )}
         <div className="flex justify-between">

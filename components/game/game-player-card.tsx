@@ -1,11 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { Player } from "@/types/game";
+import { GameClock } from "./game-clock";
 
 interface GamePlayerCardProps {
   player: Player;
   color: "white" | "black";
   isActive: boolean;
+  timeRemaining?: number | null;
+  lastMoveTime?: string | null;
+  onTimeout?: () => void;
   mobile?: boolean;
 }
 
@@ -13,6 +17,9 @@ export function GamePlayerCard({
   player,
   color,
   isActive,
+  timeRemaining,
+  lastMoveTime,
+  onTimeout,
   mobile = false,
 }: GamePlayerCardProps) {
   return (
@@ -41,9 +48,12 @@ export function GamePlayerCard({
             </div>
           </div>
         </div>
-        <div className={`font-mono ${mobile ? "text-xl" : "text-2xl"}`}>
-          15:00
-        </div>
+        <GameClock
+          timeRemaining={timeRemaining}
+          isActive={isActive}
+          lastMoveTime={lastMoveTime}
+          onTimeout={onTimeout}
+        />
       </div>
     </Card>
   );

@@ -57,7 +57,8 @@ interface LobbyGame {
   id: string;
   game_type: string;
   status: string;
-  time_limit: number | null;
+  time_control_minutes: number | null;
+  time_control_increment: number | null;
   elo_min: number | null;
   elo_max: number | null;
   password: string | null;
@@ -90,7 +91,7 @@ export function LobbyClient({
   const [gameType, setGameType] = useState<"live" | "correspondence">(
     "correspondence"
   );
-  const [timeLimit, setTimeLimit] = useState<string>("unlimited");
+  const [timeControl, setTimeControl] = useState<string>("unlimited");
   const [eloRange, setEloRange] = useState<string>("unlimited");
   const [password, setPassword] = useState("");
   const [colorPreference, setColorPreference] = useState<
@@ -167,8 +168,21 @@ export function LobbyClient({
     }
 
     try {
-      const timeLimitValue =
-        timeLimit === "unlimited" ? null : Number.parseInt(timeLimit);
+      // Parse time control (format: "minutes|increment" or "unlimited")
+      let timeControlMinutes = null;
+      let timeControlIncrement = 0;
+      let whiteTimeRemaining = null;
+      let blackTimeRemaining = null;
+
+      if (timeControl !== "unlimited") {
+        const [minutes, increment] = timeControl.split("|").map(Number);
+        timeControlMinutes = minutes;
+        timeControlIncrement = increment;
+        // Initialize time in milliseconds
+        whiteTimeRemaining = minutes * 60 * 1000;
+        blackTimeRemaining = minutes * 60 * 1000;
+      }
+
       let eloMin = null;
       let eloMax = null;
 
@@ -186,7 +200,10 @@ export function LobbyClient({
           game_type: gameType,
           status: "waiting",
           is_open: true,
-          time_limit: timeLimitValue,
+          time_control_minutes: timeControlMinutes,
+          time_control_increment: timeControlIncrement,
+          white_time_remaining: whiteTimeRemaining,
+          black_time_remaining: blackTimeRemaining,
           elo_min: eloMin,
           elo_max: eloMax,
           password: password || null,
@@ -200,7 +217,7 @@ export function LobbyClient({
 
       setIsCreateDialogOpen(false);
       // Reset form
-      setTimeLimit("unlimited");
+      setTimeControl("unlimited");
       setEloRange("unlimited");
       setPassword("");
       setColorPreference("random");
@@ -288,14 +305,18 @@ export function LobbyClient({
         }
       }
 
+      const updateData: any = {
+        white_player_id: whitePlayerId,
+        black_player_id: blackPlayerId,
+        status: "active",
+        is_open: false,
+        // Don't start the clock yet - it starts when first move is submitted
+        last_move_time: null,
+      };
+
       const { error } = await supabase
         .from("games")
-        .update({
-          white_player_id: whitePlayerId,
-          black_player_id: blackPlayerId,
-          status: "active",
-          is_open: false,
-        })
+        .update(updateData)
         .eq("id", game.id);
 
       if (error) throw error;
@@ -327,10 +348,11 @@ export function LobbyClient({
     router.push("/auth/login");
   };
 
-  const formatTimeLimit = (minutes: number | null) => {
-    if (!minutes) return "Unlimited";
-    if (minutes < 60) return `${minutes}m`;
-    return `${Math.floor(minutes / 60)}h`;
+  const formatTimeControl = (game: LobbyGame) => {
+    if (!game.time_control_minutes) return "Unlimited";
+    const minutes = game.time_control_minutes;
+    const increment = game.time_control_increment || 0;
+    return `${minutes}+${increment}`;
   };
 
   const formatEloRange = (min: number | null, max: number | null) => {
@@ -394,10 +416,10 @@ export function LobbyClient({
                           </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Time Limit</Label>
+                          <Label>Time Control</Label>
                           <Select
-                            value={timeLimit}
-                            onValueChange={setTimeLimit}
+                            value={timeControl}
+                            onValueChange={setTimeControl}
                           >
                             <SelectTrigger>
                               <SelectValue />
@@ -406,11 +428,11 @@ export function LobbyClient({
                               <SelectItem value="unlimited">
                                 Unlimited
                               </SelectItem>
-                              <SelectItem value="5">5 minutes</SelectItem>
-                              <SelectItem value="10">10 minutes</SelectItem>
-                              <SelectItem value="15">15 minutes</SelectItem>
-                              <SelectItem value="30">30 minutes</SelectItem>
-                              <SelectItem value="60">1 hour</SelectItem>
+                              <SelectItem value="2|1">2+1 (Bullet)</SelectItem>
+                              <SelectItem value="5|5">5+5 (Blitz)</SelectItem>
+                              <SelectItem value="15|10">
+                                15+10 (Rapid)
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -564,7 +586,7 @@ export function LobbyClient({
                             : "Correspondence"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatTimeLimit(game.time_limit)}</TableCell>
+                      <TableCell>{formatTimeControl(game)}</TableCell>
                       <TableCell>
                         {formatEloRange(game.elo_min, game.elo_max)}
                       </TableCell>

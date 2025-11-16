@@ -53,6 +53,7 @@ export function GameClient({
     handleSquareClick,
     handleSubmitTurn,
     handleResign,
+    handleTimeout,
     goToFirstMove,
     goToPreviousMove,
     goToNextMove,
@@ -73,6 +74,7 @@ export function GameClient({
     setLegalMoves,
     message,
     setMessage,
+    currentMoveIndex,
     setCurrentMoveIndex,
     supabase,
   });
@@ -118,6 +120,8 @@ export function GameClient({
               moveCount={game.move_history.length}
               whiteCastleMoves={game.white_castle_moves}
               blackCastleMoves={game.black_castle_moves}
+              timeControlMinutes={game.time_control_minutes}
+              timeControlIncrement={game.time_control_increment}
             />
 
             <div className="flex-1 min-h-0">
@@ -137,7 +141,10 @@ export function GameClient({
               <GamePlayerCard
                 player={game.black_player}
                 color="black"
-                isActive={!isWhitePlayer && game.current_turn === "black"}
+                isActive={game.current_turn === "black" && game.status === "active"}
+                timeRemaining={game.black_time_remaining}
+                lastMoveTime={game.last_move_time}
+                onTimeout={!isWhitePlayer && game.current_turn === "black" && game.status === "active" ? handleTimeout : undefined}
                 mobile
               />
             </div>
@@ -162,7 +169,7 @@ export function GameClient({
                 totalMoves={game.move_history.length}
                 onFirst={goToFirstMove}
                 onPrevious={goToPreviousMove}
-                onNext={() => goToNextMove(currentMoveIndex)}
+                onNext={goToNextMove}
                 onLast={goToLastMove}
               />
             </div>
@@ -172,7 +179,10 @@ export function GameClient({
               <GamePlayerCard
                 player={game.white_player}
                 color="white"
-                isActive={isWhitePlayer && game.current_turn === "white"}
+                isActive={game.current_turn === "white" && game.status === "active"}
+                timeRemaining={game.white_time_remaining}
+                lastMoveTime={game.last_move_time}
+                onTimeout={isWhitePlayer && game.current_turn === "white" && game.status === "active" ? handleTimeout : undefined}
                 mobile
               />
             </div>
@@ -195,6 +205,8 @@ export function GameClient({
                 moveCount={game.move_history.length}
                 whiteCastleMoves={game.white_castle_moves}
                 blackCastleMoves={game.black_castle_moves}
+                timeControlMinutes={game.time_control_minutes}
+                timeControlIncrement={game.time_control_increment}
                 mobile
               />
             </div>
@@ -205,7 +217,10 @@ export function GameClient({
             <GamePlayerCard
               player={game.black_player}
               color="black"
-              isActive={!isWhitePlayer && game.current_turn === "black"}
+              isActive={game.current_turn === "black" && game.status === "active"}
+              timeRemaining={game.black_time_remaining}
+              lastMoveTime={game.last_move_time}
+              onTimeout={!isWhitePlayer && game.current_turn === "black" && game.status === "active" ? handleTimeout : undefined}
             />
 
             <GameMoveHistory
@@ -217,7 +232,10 @@ export function GameClient({
             <GamePlayerCard
               player={game.white_player}
               color="white"
-              isActive={isWhitePlayer && game.current_turn === "white"}
+              isActive={game.current_turn === "white" && game.status === "active"}
+              timeRemaining={game.white_time_remaining}
+              lastMoveTime={game.last_move_time}
+              onTimeout={isWhitePlayer && game.current_turn === "white" && game.status === "active" ? handleTimeout : undefined}
             />
 
             {isPlayerTurn && !isGameCompleted && (

@@ -6,7 +6,18 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:restart": "supabase stop && supabase start",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset",
+    "supabase:migrate": "supabase migration up",
+    "supabase:diff": "supabase db diff",
+    "supabase:push": "supabase db push",
+    "supabase:logs": "supabase functions logs",
+    "supabase:link": "supabase link",
+    "supabase:gen-types": "supabase gen types typescript --local > types/supabase.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
