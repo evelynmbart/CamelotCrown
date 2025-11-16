@@ -18,6 +18,7 @@ export function Navbar({ username, elo }: NavbarProps) {
   const router = useRouter();
   const navItems = [
     { href: "/lobby", label: "Lobby" },
+    { href: "/computer", label: "vs Computer" },
     { href: "/local", label: "Local Play" },
     { href: "/players", label: "Players" },
     { href: "/leaderboard", label: "Leaderboard" },
