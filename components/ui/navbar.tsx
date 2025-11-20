@@ -1,5 +1,6 @@
 "use client";
 
+import { RulesModal } from "@/components/rules-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -71,6 +72,7 @@ export function Navbar({ username, elo }: NavbarProps) {
             <Button variant="default" size="sm" onClick={() => signOut()}>
               Sign Out
             </Button>
+            <RulesModal />
           </div>
         </div>
       </div>
