@@ -25,13 +25,28 @@ export function ChivalryBoard({
 }: ChivalryBoardProps) {
   // Parse last move to show arrows (opponent's last move)
   const lastMoveArrows = (() => {
-    // Split by both 'x' (captures) and '-' (regular moves)
-    const squares = lastMove?.split(/[x-]/) ?? [];
+    if (!lastMove) return [];
 
-    // Create arrow segments for each step in the move
-    const arrows: Array<{ from: string; to: string }> = [];
-    for (let i = 0; i < squares.length - 1; i++) {
-      arrows.push({ from: squares[i], to: squares[i + 1] });
+    // Parse the notation to extract squares and move types
+    const arrows: Array<{ from: string; to: string; isJump: boolean }> = [];
+
+    // Match pattern: square followed by delimiter (x or -)
+    const pattern = /([A-L]\d+)([x-])/g;
+    const matches = Array.from(lastMove.matchAll(pattern));
+
+    for (let i = 0; i < matches.length; i++) {
+      const square = matches[i][1];
+      const delimiter = matches[i][2];
+      const nextSquare =
+        i < matches.length - 1
+          ? matches[i + 1][1]
+          : lastMove.substring(matches[i].index! + matches[i][0].length);
+
+      arrows.push({
+        from: square,
+        to: nextSquare,
+        isJump: delimiter === "x",
+      });
     }
 
     return arrows;
@@ -220,7 +235,7 @@ export function ChivalryBoard({
             >
               <defs>
                 <marker
-                  id="arrowhead-sm"
+                  id="arrowhead-jump-sm"
                   markerWidth="8"
                   markerHeight="8"
                   refX="7"
@@ -230,8 +245,23 @@ export function ChivalryBoard({
                 >
                   <polygon
                     points="0 0, 8 2.5, 0 5"
-                    fill="rgb(34, 197, 94)"
-                    opacity="0.8"
+                    fill="rgb(248, 113, 113)"
+                    opacity="0.7"
+                  />
+                </marker>
+                <marker
+                  id="arrowhead-canter-sm"
+                  markerWidth="8"
+                  markerHeight="8"
+                  refX="7"
+                  refY="2.5"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <polygon
+                    points="0 0, 8 2.5, 0 5"
+                    fill="rgb(96, 165, 250)"
+                    opacity="0.7"
                   />
                 </marker>
               </defs>
@@ -252,6 +282,13 @@ export function ChivalryBoard({
                 const adjustedToX = toX - Math.cos(angle) * shortenBy;
                 const adjustedToY = toY - Math.sin(angle) * shortenBy;
 
+                const strokeColor = arrow.isJump
+                  ? "rgb(248, 113, 113)" // light red for jumps
+                  : "rgb(96, 165, 250)"; // light blue for canters/plain
+                const markerId = arrow.isJump
+                  ? "arrowhead-jump-sm"
+                  : "arrowhead-canter-sm";
+
                 return (
                   <line
                     key={`${arrow.from}-${arrow.to}-${index}-sm`}
@@ -259,10 +296,10 @@ export function ChivalryBoard({
                     y1={adjustedFromY}
                     x2={adjustedToX}
                     y2={adjustedToY}
-                    stroke="rgb(34, 197, 94)"
+                    stroke={strokeColor}
                     strokeWidth="3"
-                    strokeOpacity="0.8"
-                    markerEnd="url(#arrowhead-sm)"
+                    strokeOpacity="0.7"
+                    markerEnd={`url(#${markerId})`}
                   />
                 );
               })}
@@ -275,7 +312,7 @@ export function ChivalryBoard({
             >
               <defs>
                 <marker
-                  id="arrowhead-lg"
+                  id="arrowhead-jump-lg"
                   markerWidth="6"
                   markerHeight="6"
                   refX="5.4"
@@ -285,8 +322,23 @@ export function ChivalryBoard({
                 >
                   <polygon
                     points="0 0, 6 1.8, 0 3.6"
-                    fill="rgb(251, 146, 60)"
-                    opacity="0.6"
+                    fill="rgb(248, 113, 113)"
+                    opacity="0.7"
+                  />
+                </marker>
+                <marker
+                  id="arrowhead-canter-lg"
+                  markerWidth="6"
+                  markerHeight="6"
+                  refX="5.4"
+                  refY="1.8"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <polygon
+                    points="0 0, 6 1.8, 0 3.6"
+                    fill="rgb(96, 165, 250)"
+                    opacity="0.7"
                   />
                 </marker>
               </defs>
@@ -307,6 +359,13 @@ export function ChivalryBoard({
                 const adjustedToX = toX - Math.cos(angle) * shortenBy;
                 const adjustedToY = toY - Math.sin(angle) * shortenBy;
 
+                const strokeColor = arrow.isJump
+                  ? "rgb(248, 113, 113)" // light red for jumps
+                  : "rgb(96, 165, 250)"; // light blue for canters/plain
+                const markerId = arrow.isJump
+                  ? "arrowhead-jump-lg"
+                  : "arrowhead-canter-lg";
+
                 return (
                   <line
                     key={`${arrow.from}-${arrow.to}-${index}-lg`}
@@ -314,10 +373,10 @@ export function ChivalryBoard({
                     y1={adjustedFromY}
                     x2={adjustedToX}
                     y2={adjustedToY}
-                    stroke="rgb(251, 146, 60)"
+                    stroke={strokeColor}
                     strokeWidth="4"
-                    strokeOpacity="0.3"
-                    markerEnd="url(#arrowhead-lg)"
+                    strokeOpacity="0.7"
+                    markerEnd={`url(#${markerId})`}
                   />
                 );
               })}
