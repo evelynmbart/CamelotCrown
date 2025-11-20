@@ -1,8 +1,6 @@
-# Canter
+# Camelot Crown
 
-A web implementation of Camelot, a medieval-themed strategy board game created in 1930. Think chess meets checkers with knights that can chain jumps.
-
-[Play it here](https://cantercrown.com) | [Rules](lib/camelot/README.md)
+[Play it here](https://camelotcrown.com) | [Rules](lib/camelot/README.md)
 
 ## What is Camelot?
 
